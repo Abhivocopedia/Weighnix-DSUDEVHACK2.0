@@ -1,0 +1,141 @@
+#include <driver/rtc_io.h>
+
+// Power management states
+enum PowerState {
+  STATE_ACTIVE,      // Full operation
+  STATE_LOW_POWER,   // Reduced functionality
+  STATE_STANDBY      // Minimal operation
+};
+
+PowerState currentState = STATE_ACTIVE;
+unsigned long lastActivityTime = 0;
+const unsigned long ACTIVITY_TIMEOUT = 300000; // 5 minutes
+const unsigned long LOW_POWER_TIMEOUT = 600000; // 10 minutes
+
+// Battery monitoring
+const int BATTERY_PIN = 35; // ADC pin for battery voltage
+float batteryVoltage = 0.0;
+const float LOW_BATTERY_THRESHOLD = 3.3; // 3.3V
+const float CRITICAL_BATTERY_THRESHOLD = 3.0; // 3.0V
+
+void setupBatteryOptimization() {
+  // Configure ADC for battery monitoring
+  analogReadResolution(12); // 12-bit resolution
+  analogSetAttenuation(ADC_11db); // 0-3.3V range
+  
+  // Initialize power management
+  setCpuFrequencyMhz(80); // Reduce CPU frequency initially
+}
+
+void monitorBattery() {
+  // Read battery voltage (with voltage divider 100k+100k)
+  int adcValue = analogRead(BATTERY_PIN);
+  batteryVoltage = (adcValue * 3.3 * 2) / 4095.0; // ×2 for voltage divider
+  
+  Serial.printf("Battery: %.2fV\n", batteryVoltage);
+  
+  // Adjust power state based on battery level
+  if (batteryVoltage < CRITICAL_BATTERY_THRESHOLD) {
+    enterCriticalBatteryMode();
+  } else if (batteryVoltage < LOW_BATTERY_THRESHOLD) {
+    setPowerState(STATE_STANDBY);
+  }
+}
+
+void optimizePowerConsumption() {
+  unsigned long currentTime = millis();
+  
+  // Check activity timeout
+  if (currentTime - lastActivityTime > LOW_POWER_TIMEOUT) {
+    setPowerState(STATE_STANDBY);
+  } else if (currentTime - lastActivityTime > ACTIVITY_TIMEOUT) {
+    setPowerState(STATE_LOW_POWER);
+  } else {
+    setPowerState(STATE_ACTIVE);
+  }
+  
+  monitorBattery();
+}
+
+void setPowerState(PowerState newState) {
+  if (currentState == newState) return;
+  
+  switch (newState) {
+    case STATE_ACTIVE:
+      // Full performance mode
+      setCpuFrequencyMhz(240);
+      WiFi.setSleep(false);
+      Serial.println("Entering ACTIVE mode");
+      break;
+      
+    case STATE_LOW_POWER:
+      // Reduced power mode
+      setCpuFrequencyMhz(80);
+      WiFi.setSleep(WIFI_PS_MIN_MODEM);
+      Serial.println("Entering LOW POWER mode");
+      break;
+      
+    case STATE_STANDBY:
+      // Minimal power mode
+      setCpuFrequencyMhz(40);
+      WiFi.disconnect(true);
+      WiFi.mode(WIFI_OFF);
+      btStop();
+      Serial.println("Entering STANDBY mode");
+      break;
+  }
+  
+  currentState = newState;
+}
+
+void enterCriticalBatteryMode() {
+  // Extreme power saving measures
+  setCpuFrequencyMhz(20);
+  WiFi.disconnect(true);
+  WiFi.mode(WIFI_OFF);
+  btStop();
+  
+  // Disable peripherals
+  digitalWrite(BUZZER_PIN, LOW);
+  // Add code to disable other peripherals
+  
+  // Reduce update frequency dramatically
+  Serial.println("CRITICAL BATTERY: Entering ultra-low power mode");
+}
+
+void updateActivityTime() {
+  lastActivityTime = millis();
+  if (currentState != STATE_ACTIVE) {
+    setPowerState(STATE_ACTIVE);
+  }
+}
+
+// Modified readSensor function with power management
+void readSensorWithPowerManagement() {
+  // Only read sensor in active or low power mode
+  if (currentState == STATE_STANDBY) {
+    // Briefly wake up to check sensor
+    setPowerState(STATE_LOW_POWER);
+    readSensorDataHighPrecision();
+    setPowerState(STATE_STANDBY);
+  } else {
+    readSensorDataHighPrecision();
+  }
+  
+  updateActivityTime();
+}
+
+// Modified WiFi connection with power management
+void connectToWiFiPowerAware() {
+  if (currentState == STATE_STANDBY) {
+    setPowerState(STATE_LOW_POWER);
+  }
+  
+  connectToWiFi(); // Your existing WiFi function
+  
+  // After connection, consider returning to appropriate state
+  if (currentState == STATE_LOW_POWER) {
+    // Stay in low power if no recent activity
+    optimizePowerConsumption();
+  }
+}
