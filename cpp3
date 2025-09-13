@@ -1,0 +1,24 @@
+void loop() {
+  server.handleClient();
+  readSensorWithPowerManagement();
+  
+  // Record kitchen usage if gas was used
+  static float lastGas = 0;
+  if (abs(currentGasGrams - lastGas) > 10) { // Significant change
+    float gasUsed = abs(currentGasGrams - lastGas);
+    recordKitchenUsage(gasUsed);
+    lastGas = currentGasGrams;
+  }
+  
+  checkAlerts();
+  optimizePowerConsumption();
+  
+  // Predict usage every hour
+  static unsigned long lastPrediction = 0;
+  if (millis() - lastPrediction > 3600000) {
+    predictNextUsage();
+    lastPrediction = millis();
+  }
+  
+  delay(2000);
+}
