@@ -9,8 +9,8 @@
 #define LOADCELL_SCK_PIN 4
 
 // WiFi Credentials
-const char* ssid = "Lecture Hall 5";
-const char* password = "LH-SOE@7777";
+const char* ssid = "SS-ID";
+const char* password = "PASSWORD";
 
 // Calibration Factors
 float calibration_factor = -96650.0;
