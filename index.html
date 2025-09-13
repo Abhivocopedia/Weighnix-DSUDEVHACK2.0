@@ -1,0 +1,572 @@
+<!DOCTYPE html>
+<html lang="en" class="scroll-smooth">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Weighnix - Smart LPG Monitoring System</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap" rel="stylesheet">
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+    <style>
+        * {
+            cursor: none;
+        }
+        
+        body {
+            font-family: 'Inter', sans-serif;
+            background: linear-gradient(135deg, #0a0a0a 0%, #1a1a1a 100%);
+            color: #e5e5e5;
+            overflow-x: hidden;
+            min-height: 100vh;
+        }
+        
+        /* Custom cursor */
+        .cursor-dot {
+            width: 8px;
+            height: 8px;
+            background-color: #3b82f6;
+            border-radius: 50%;
+            position: fixed;
+            pointer-events: none;
+            z-index: 9999;
+            transform: translate(-50%, -50%);
+            transition: transform 0.1s ease;
+        }
+        
+        .cursor-outline {
+            width: 40px;
+            height: 40px;
+            border: 2px solid rgba(59, 130, 246, 0.5);
+            border-radius: 50%;
+            position: fixed;
+            pointer-events: none;
+            z-index: 9998;
+            transform: translate(-50%, -50%) scale(1);
+            transition: transform 0.2s ease, border 0.2s ease;
+        }
+        
+        .cursor-dot.hover, .cursor-outline.hover {
+            transform: translate(-50%, -50%) scale(1.5);
+            background-color: #8b5cf6;
+            border-color: rgba(139, 92, 246, 0.3);
+        }
+        
+        /* Trail elements */
+        .trail {
+            position: fixed;
+            width: 6px;
+            height: 6px;
+            border-radius: 50%;
+            background: linear-gradient(45deg, #3b82f6, #8b5cf6, #ec4899);
+            pointer-events: none;
+            z-index: 9997;
+            opacity: 0;
+            animation: fadeTrail 0.6s forwards;
+        }
+        
+        @keyframes fadeTrail {
+            0% {
+                opacity: 0.8;
+                transform: translate(-50%, -50%) scale(1);
+            }
+            100% {
+                opacity: 0;
+                transform: translate(-50%, -50%) scale(0.5);
+            }
+        }
+        
+        /* App container styling */
+        .app-container {
+            background: linear-gradient(135deg, #1a1a1a 0%, #2d2d2d 100%);
+            border: 1px solid #404040;
+            box-shadow: 0 10px 30px rgba(0, 0, 0, 0.4);
+        }
+        
+        /* Header styling */
+        .header-bg {
+            background: linear-gradient(135deg, #1e293b 0%, #0f172a 100%);
+            border: 1px solid #334155;
+            box-shadow: 0 4px 15px rgba(0, 0, 0, 0.5);
+        }
+        
+        /* Stats card styling */
+        .stat-card {
+            background: linear-gradient(135deg, #262626 0%, #404040 100%);
+            border: 1px solid #404040;
+            box-shadow: 0 4px 10px rgba(0, 0, 0, 0.3);
+            transition: all 0.3s ease;
+        }
+        
+        .stat-card:hover {
+            transform: translateY(-5px);
+            box-shadow: 0 8px 20px rgba(0, 0, 0, 0.4);
+            background: linear-gradient(135deg, #2d2d2d 0%, #4a4a4a 100%);
+            border-color: #3b82f6;
+        }
+        
+        /* Text styling */
+        .text-gradient {
+            background: linear-gradient(90deg, #3b82f6, #8b5cf6);
+            -webkit-background-clip: text;
+            -webkit-text-fill-color: transparent;
+        }
+        
+        /* Animation for the main container */
+        @keyframes fadeIn {
+            from {
+                opacity: 0;
+                transform: translateY(20px);
+            }
+            to {
+                opacity: 1;
+                transform: translateY(0);
+            }
+        }
+        
+        .animate-fade-in {
+            animation: fadeIn 0.8s ease-out forwards;
+        }
+        
+        /* Button styling */
+        .action-button {
+            background: linear-gradient(135deg, #3b82f6 0%, #1d4ed8 100%);
+            border: 1px solid #60a5fa;
+            box-shadow: 0 4px 10px rgba(37, 99, 235, 0.3);
+            transition: all 0.3s ease;
+        }
+        
+        .action-button:hover {
+            background: linear-gradient(135deg, #2563eb 0%, #1e40af 100%);
+            transform: translateY(-3px);
+            box-shadow: 0 8px 20px rgba(37, 99, 235, 0.4);
+        }
+        
+        .action-button:active {
+            transform: translateY(0);
+            box-shadow: 0 4px 10px rgba(37, 99, 235, 0.3);
+        }
+        
+        /* Navigation styling */
+        .nav-item {
+            transition: all 0.3s ease;
+            position: relative;
+            padding: 0.5rem;
+            border-radius: 10px;
+        }
+        
+        .nav-item:hover {
+            color: #3b82f6;
+            transform: translateY(-5px);
+        }
+        
+        .nav-item::after {
+            content: '';
+            position: absolute;
+            bottom: -5px;
+            left: 50%;
+            width: 0;
+            height: 2px;
+            background: linear-gradient(90deg, #3b82f6, #8b5cf6);
+            transition: all 0.3s ease;
+            transform: translateX(-50%);
+        }
+        
+        .nav-item:hover::after {
+            width: 80%;
+        }
+        
+        /* Feature card styling */
+        .feature-card {
+            background: linear-gradient(135deg, #1e293b 0%, #334155 100%);
+            border: 1px solid #475569;
+            box-shadow: 0 4px 10px rgba(0, 0, 0, 0.3);
+            transition: all 0.3s ease;
+        }
+        
+        .feature-card:hover {
+            transform: translateY(-5px);
+            box-shadow: 0 8px 20px rgba(37, 99, 235, 0.3);
+            background: linear-gradient(135deg, #334155 0%, #475569 100%);
+            border-color: #3b82f6;
+        }
+        
+        /* Form styling */
+        .form-input {
+            background: linear-gradient(135deg, #1e293b 0%, #334155 100%);
+            border: 1px solid #475569;
+            color: #e5e5e5;
+            transition: all 0.3s ease;
+        }
+        
+        .form-input:focus {
+            outline: none;
+            border-color: #3b82f6;
+            box-shadow: 0 0 10px rgba(37, 99, 235, 0.3);
+        }
+        
+        /* Hero glow effect */
+        .hero-glow {
+            background-image: radial-gradient(ellipse 80% 80% at 50% -20%, rgba(59, 130, 246, 0.2), rgba(255, 255, 255, 0));
+        }
+    </style>
+</head>
+<body class="flex items-start justify-center p-0 md:p-8">
+    <!-- Custom cursor elements -->
+    <div class="cursor-dot"></div>
+    <div class="cursor-outline"></div>
+
+    <!-- Main Content -->
+    <main class="w-full max-w-6xl animate-fade-in">
+        <!-- Header -->
+        <header class="header-bg backdrop-blur-lg sticky top-0 z-50 border-b border-slate-800">
+            <div class="container mx-auto px-4">
+                <nav class="flex justify-between items-center py-4">
+                    <a href="#" class="flex items-center gap-2 text-2xl font-bold text-gradient">
+                        <!-- Weighnix Colorful Logo SVG -->
+                        <svg class="h-8 w-auto" viewBox="0 0 48 48" fill="none" xmlns="http://www.w3.org/2000/svg">
+                            <title>Weighnix Logo</title>
+                            <rect x="4" y="34" width="40" height="8" rx="4" fill="#2563EB"/> <!-- Blue Base -->
+                            <path d="M12 34V18C12 14.6863 14.6863 12 18 12H30C33.3137 12 36 14.6863 36 18V34H12Z" fill="#60A5FA"/> <!-- Lighter Blue Cylinder -->
+                            <path d="M20 12V8C20 6.89543 20.8954 6 22 6H26C27.1046 6 28 6.89543 28 8V12H20Z" fill="#94A3B8"/> <!-- Grey Top -->
+                            <circle cx="24" cy="38" r="2" fill="#14B8A6"/> <!-- Teal Dot -->
+                            <path d="M28 38C28 35.7909 26.2091 34 24 34" stroke="#14B8A6" stroke-width="2.5" stroke-linecap="round"/> <!-- Teal Signal -->
+                            <path d="M31 38C31 34.134 27.866 31 24 31" stroke="#14B8A6" stroke-width="2.5" stroke-linecap="round"/> <!-- Teal Signal -->
+                        </svg>
+                        <span>Weighnix</span>
+                    </a>
+                    <div class="hidden md:flex items-center space-x-8">
+                        <a href="#team" class="nav-item text-slate-400">Our Team</a>
+                        <a href="#features" class="nav-item text-slate-400">Features</a>
+                        <a href="#how-it-works" class="nav-item text-slate-400">How It Works</a>
+                        <a href="#specs" class="nav-item text-slate-400">Specifications</a>
+                    </div>
+                    <a href="#contact" class="action-button text-white px-5 py-2 rounded-full font-semibold shadow-md">
+                        Pre-order Now
+                    </a>
+                </nav>
+            </div>
+        </header>
+
+        <!-- Hero Section -->
+        <section class="relative py-20 md:py-32 hero-glow">
+            <div class="container mx-auto px-4 text-center">
+                <h1 class="text-4xl md:text-6xl font-extrabold tracking-tight text-white mb-6">
+                    Meet <span class="text-gradient">Weighnix</span>.
+                    <br>
+                    The Smart Guardian for Your Kitchen.
+                </h1>
+                <p class="max-w-3xl mx-auto text-lg md:text-xl text-slate-400 mb-10">
+                    Never run out of gas unexpectedly. Stay safe from dangerous leaks. Weighnix brings peace of mind to your home with intelligent LPG monitoring.
+                </p>
+                <div class="flex justify-center gap-4">
+                    <a href="#contact" class="action-button text-white px-8 py-3 rounded-full font-bold text-lg shadow-lg">Join the Waitlist</a>
+                    <a href="#how-it-works" class="bg-slate-800 text-white px-8 py-3 rounded-full font-bold text-lg hover:bg-slate-700 transition-transform hover:scale-105 shadow-lg border border-slate-700">Learn More</a>
+                </div>
+                <div class="mt-16">
+                    <img src="https://placehold.co/800x400/1e293b/ffffff?text=Weighnix+Device&font=inter" alt="Weighnix Smart LPG Monitoring Device" class="mx-auto rounded-xl shadow-2xl">
+                </div>
+            </div>
+        </section>
+
+        <!-- Team Section -->
+        <section id="team" class="py-20 bg-slate-900">
+            <div class="container mx-auto px-4">
+                <div class="text-center mb-16">
+                    <h2 class="text-3xl md:text-4xl font-bold text-white">Meet TheAPIcalypse</h2>
+                    <p class="mt-4 text-lg text-slate-400 max-w-2xl mx-auto">The passionate student team behind Weighnix</p>
+                </div>
+                <div class="grid md:grid-cols-3 gap-8">
+                    <!-- Team Member 1: Abhinandana Bhatta -->
+                    <div class="feature-card p-8 rounded-xl hover:-translate-y-1 text-center">
+                        <div class="mx-auto bg-blue-900/30 text-blue-400 rounded-full h-24 w-24 flex items-center justify-center mb-5">
+                            <i class="fas fa-user text-3xl"></i>
+                        </div>
+                        <h3 class="text-xl font-bold mb-2 text-white">Abhinandana Bhatta</h3>
+                        <p class="text-blue-400 font-medium mb-2">Team Lead</p>
+                        <p class="text-slate-400">First-year student with leadership skills and a passion for innovation, driving the team forward despite not having attended a single class yet.</p>
+                    </div>
+
+                    <!-- Team Member 2: Aditya -->
+                    <div class="feature-card p-8 rounded-xl hover:-translate-y-1 text-center">
+                        <div class="mx-auto bg-emerald-900/30 text-emerald-400 rounded-full h-24 w-24 flex items-center justify-center mb-5">
+                            <i class="fas fa-user text-3xl"></i>
+                        </div>
+                        <h3 class="text-xl font-bold mb-2 text-white">Aditya Nayak</h3>
+                        <p class="text-emerald-400 font-medium mb-2">Team Member</p>
+                        <p class="text-slate-400">First-year student bringing fresh perspectives and enthusiasm to the project. Like our team lead, Aditya hasn't attended classes yet but is already contributing to innovative solutions.</p>
+                    </div>
+
+                    <!-- Team Member 3: Shashank S -->
+                    <div class="feature-card p-8 rounded-xl hover:-translate-y-1 text-center">
+                        <div class="mx-auto bg-purple-900/30 text-purple-400 rounded-full h-24 w-24 flex items-center justify-center mb-5">
+                            <i class="fas fa-user text-3xl"></i>
+                        </div>
+                        <h3 class="text-xl font-bold mb-2 text-white">Shashank S</h3>
+                        <p class="text-purple-400 font-medium mb-2">Technical Lead</p>
+                        <p class="text-slate-400">Third-year student providing technical expertise and guidance to the team. With more experience in the academic environment, Shashank helps bridge the knowledge gap and ensures technical excellence.</p>
+                    </div>
+                </div>
+            </div>
+        </section>
+
+        <!-- Features Section -->
+        <section id="features" class="py-20 bg-slate-900/50">
+            <div class="container mx-auto px-4">
+                <div class="text-center mb-16">
+                    <h2 class="text-3xl md:text-4xl font-bold text-white">Smart, Safe, Simple.</h2>
+                    <p class="mt-4 text-lg text-slate-400 max-w-2xl mx-auto">Everything you need for a worry-free cooking experience.</p>
+                </div>
+                <div class="grid md:grid-cols-3 gap-8">
+                    <!-- Feature 1: Real-time Monitoring -->
+                    <div class="feature-card p-8 rounded-xl hover:-translate-y-1">
+                        <div class="bg-blue-900/30 text-blue-400 rounded-full h-12 w-12 flex items-center justify-center mb-5">
+                            <i class="fas fa-weight text-xl"></i>
+                        </div>
+                        <h3 class="text-xl font-bold mb-2 text-white">Real-time Weight Monitoring</h3>
+                        <p class="text-slate-400">Our high-precision load cell accurately tracks your LPG level. Check the remaining gas percentage anytime, anywhere through our mobile app.</p>
+                    </div>
+
+                    <!-- Feature 2: Leak Detection -->
+                    <div class="feature-card p-8 rounded-xl hover:-translate-y-1">
+                        <div class="bg-emerald-900/30 text-emerald-400 rounded-full h-12 w-12 flex items-center justify-center mb-5">
+                            <i class="fas fa-exclamation-triangle text-xl"></i>
+                        </div>
+                        <h3 class="text-xl font-bold mb-2 text-white">Instant Leak Detection</h3>
+                        <p class="text-slate-400">The integrated MQ-5 sensor continuously sniffs the air for gas leaks. If a leak is detected, a loud alarm sounds and you receive an instant notification on your phone.</p>
+                    </div>
+
+                    <!-- Feature 3: Smart Alerts -->
+                    <div class="feature-card p-8 rounded-xl hover:-translate-y-1">
+                        <div class="bg-purple-900/30 text-purple-400 rounded-full h-12 w-12 flex items-center justify-center mb-5">
+                            <i class="fas fa-bell text-xl"></i>
+                        </div>
+                        <h3 class="text-xl font-bold mb-2 text-white">Low-Level Alerts</h3>
+                        <p class="text-slate-400">Weighnix intelligently notifies you when your gas is running low, giving you plenty of time to order a refill before you run out in the middle of cooking.</p>
+                    </div>
+                </div>
+            </div>
+        </section>
+
+        <!-- How It Works Section -->
+        <section id="how-it-works" class="py-20 bg-slate-900">
+            <div class="container mx-auto px-4">
+                <div class="text-center mb-16">
+                    <h2 class="text-3xl md:text-4xl font-bold text-white">Effortless Setup, Powerful Protection.</h2>
+                    <p class="mt-4 text-lg text-slate-400 max-w-2xl mx-auto">Get started with Weighnix in three simple steps.</p>
+                </div>
+                <div class="space-y-16">
+                    <!-- Step 1 -->
+                    <div class="flex flex-col md:flex-row items-center gap-10">
+                        <div class="md:w-1/2">
+                            <img src="https://placehold.co/500x350/1e293b/e2e8f0?text=Step+1&font=inter" alt="Place cylinder on Weighnix base" class="rounded-lg shadow-lg">
+                        </div>
+                        <div class="md:w-1/2">
+                            <span class="text-blue-400 font-bold">STEP 1</span>
+                            <h3 class="text-2xl font-bold mt-2 mb-4 text-white">Place & Power On</h3>
+                            <p class="text-slate-400 text-lg">Simply place your standard LPG cylinder on the durable Weighnix base and plug it into a power source. That's it.</p>
+                        </div>
+                    </div>
+                    <!-- Step 2 -->
+                    <div class="flex flex-col md:flex-row-reverse items-center gap-10">
+                        <div class="md:w-1/2">
+                             <img src="https://placehold.co/500x350/1e293b/e2e8f0?text=Step+2&font=inter" alt="Connect Weighnix to the mobile app" class="rounded-lg shadow-lg">
+                        </div>
+                        <div class="md:w-1/2">
+                            <span class="text-blue-400 font-bold">STEP 2</span>
+                            <h3 class="text-2xl font-bold mt-2 mb-4 text-white">Connect to the App</h3>
+                            <p class="text-slate-400 text-lg">Download the Weighnix app on your smartphone. The ESP32's built-in Wi-Fi makes connecting to your home network a breeze.</p>
+                        </div>
+                    </div>
+                    <!-- Step 3 -->
+                    <div class="flex flex-col md:flex-row items-center gap-10">
+                         <div class="md:w-1/2">
+                            <img src="https://placehold.co/500x350/1e293b/e2e8f0?text=Step+3&font=inter" alt="Monitor LPG levels and alerts on your phone" class="rounded-lg shadow-lg">
+                        </div>
+                        <div class="md:w-1/2">
+                           <span class="text-blue-400 font-bold">STEP 3</span>
+                            <h3 class="text-2xl font-bold mt-2 mb-4 text-white">Monitor with Confidence</h3>
+                            <p class="text-slate-400 text-lg">You're all set! Monitor your gas levels, track usage history, and receive critical safety alerts directly on your phone.</p>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </section>
+
+        <!-- Technical Specifications Section -->
+        <section id="specs" class="py-20 bg-slate-900/50">
+            <div class="container mx-auto px-4">
+                <div class="max-w-4xl mx-auto">
+                    <div class="text-center mb-12">
+                         <h2 class="text-3xl md:text-4xl font-bold text-white">Under the Hood</h2>
+                         <p class="mt-4 text-lg text-slate-400">Built with reliable, industry-standard components.</p>
+                    </div>
+                    <div class="bg-slate-800 rounded-xl border border-slate-700 p-8">
+                        <div class="grid md:grid-cols-2 gap-x-8 gap-y-6 text-lg">
+                            <div><strong class="text-white">Controller:</strong> <span class="text-slate-400">ESP32 Microcontroller</span></div>
+                            <div><strong class="text-white">Connectivity:</strong> <span class="text-slate-400">2.4GHz Wi-Fi, Bluetooth 4.2</span></div>
+                            <div><strong class="text-white">Weight Sensor:</strong> <span class="text-slate-400">High-Precision Load Cell</span></div>
+                            <div><strong class="text-white">Decoder:</strong> <span class="text-slate-400">HX711 24-bit ADC</span></div>
+                            <div><strong class="text-white">Gas Sensor:</strong> <span class="text-slate-400">MQ-5 (LPG, Natural Gas)</span></div>
+                            <div><strong class="text-white">Alarm:</strong> <span class="text-slate-400">85dB Piezo Buzzer</span></div>
+                             <div><strong class="text-white">Material:</strong> <span class="text-slate-400">High-Density ABS Polymer</span></div>
+                             <div><strong class="text-white">Power:</strong> <span class="text-slate-400">5V DC Adapter</span></div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </section>
+
+        <!-- Contact / Pre-order Section -->
+        <section id="contact" class="py-20 bg-gradient-to-br from-blue-900/80 to-indigo-900/80 text-white">
+            <div class="container mx-auto px-4 text-center">
+                 <h2 class="text-3xl md:text-4xl font-bold">Be the First to Experience Weighnix.</h2>
+                 <p class="mt-4 text-lg text-blue-200 max-w-2xl mx-auto">Join our waitlist for exclusive launch updates and a special pre-order discount. No spam, we promise.</p>
+                 <form id="waitlist-form" class="mt-10 max-w-lg mx-auto">
+                    <div class="flex flex-col sm:flex-row gap-4">
+                        <input type="email" id="email-input" required placeholder="Enter your email address" class="form-input w-full px-5 py-3 rounded-full placeholder-slate-400 focus:outline-none transition">
+                        <button type="submit" class="action-button px-8 py-3 rounded-full font-bold text-lg w-full sm:w-auto">Notify Me</button>
+                    </div>
+                    <p id="form-message" class="mt-4 text-green-300 h-5"></p>
+                 </form>
+            </div>
+        </section>
+
+    </main>
+
+    <!-- Footer -->
+    <footer class="bg-slate-900 text-slate-400 py-8 border-t border-slate-800">
+        <div class="container mx-auto px-4 text-center">
+            <p>&copy; 2025 Weighnix. All rights reserved. A smarter, safer home is on the way.</p>
+        </div>
+    </footer>
+
+    <script>
+        // Custom cursor implementation
+        const cursorDot = document.querySelector('.cursor-dot');
+        const cursorOutline = document.querySelector('.cursor-outline');
+        const trails = [];
+        const trailCount = 20;
+        
+        // Create trail elements
+        for (let i = 0; i < trailCount; i++) {
+            const trail = document.createElement('div');
+            trail.className = 'trail';
+            document.body.appendChild(trail);
+            trails.push({
+                element: trail,
+                x: 0,
+                y: 0,
+                lastPosition: { x: 0, y: 0 },
+                size: Math.random() * 4 + 3,
+                speed: Math.random() * 0.05 + 0.05
+            });
+        }
+        
+        // Mouse move event for cursor and trails
+        document.addEventListener('mousemove', (e) => {
+            const { clientX: x, clientY: y } = e;
+            
+            // Update cursor position
+            cursorDot.style.left = `${x}px`;
+            cursorDot.style.top = `${y}px`;
+            cursorOutline.style.left = `${x}px`;
+            cursorOutline.style.top = `${y}px`;
+            
+            // Update trail positions with a delay
+            trails.forEach((trail, index) => {
+                setTimeout(() => {
+                    trail.lastPosition.x = trail.x;
+                    trail.lastPosition.y = trail.y;
+                    trail.x = x;
+                    trail.y = y;
+                    
+                    trail.element.style.left = `${trail.x}px`;
+                    trail.element.style.top = `${trail.y}px`;
+                    trail.element.style.width = `${trail.size}px`;
+                    trail.element.style.height = `${trail.size}px`;
+                    
+                    // Reset animation
+                    trail.element.style.animation = 'none';
+                    setTimeout(() => {
+                        trail.element.style.animation = `fadeTrail ${0.3 + index * 0.01}s forwards`;
+                    }, 10);
+                }, index * 30);
+            });
+            
+            // Add hover effect to interactive elements
+            const hoverElements = document.querySelectorAll('button, a, input[type="email"]');
+            let isHovering = false;
+            
+            hoverElements.forEach(el => {
+                if (el.matches(':hover')) {
+                    isHovering = true;
+                }
+            });
+            
+            if (isHovering) {
+                cursorDot.classList.add('hover');
+                cursorOutline.classList.add('hover');
+            } else {
+                cursorDot.classList.remove('hover');
+                cursorOutline.classList.remove('hover');
+            }
+        });
+        
+        // Click effect for cursor
+        document.addEventListener('mousedown', () => {
+            cursorOutline.style.transform = 'translate(-50%, -50%) scale(0.8)';
+        });
+        
+        document.addEventListener('mouseup', () => {
+            cursorOutline.style.transform = 'translate(-50%, -50%) scale(1)';
+        });
+        
+        // Hide cursor on leaving window
+        document.addEventListener('mouseleave', () => {
+            cursorDot.style.opacity = '0';
+            cursorOutline.style.opacity = '0';
+        });
+        
+        document.addEventListener('mouseenter', () => {
+            cursorDot.style.opacity = '1';
+            cursorOutline.style.opacity = '1';
+        });
+        
+        // Smooth scrolling for navigation links
+        document.querySelectorAll('a[href^="#"]').forEach(anchor => {
+            anchor.addEventListener('click', function (e) {
+                e.preventDefault();
+                document.querySelector(this.getAttribute('href')).scrollIntoView({
+                    behavior: 'smooth'
+                });
+            });
+        });
+
+        // Handle waitlist form submission
+        const waitlistForm = document.getElementById('waitlist-form');
+        const emailInput = document.getElementById('email-input');
+        const formMessage = document.getElementById('form-message');
+
+        waitlistForm.addEventListener('submit', function(e) {
+            e.preventDefault();
+            const email = emailInput.value;
+            
+            if (email) {
+                // In a real application, you would send this email to your server.
+                // For this demo, we'll just show a success message.
+                console.log('Email submitted:', email);
+                
+                formMessage.textContent = 'Thank you! You\'ve been added to the list.';
+                emailInput.value = '';
+                
+                // Optional: Clear message after a few seconds
+                setTimeout(() => {
+                    formMessage.textContent = '';
+                }, 5000);
+            }
+        });
+    </script>
+</body>
+</html>
