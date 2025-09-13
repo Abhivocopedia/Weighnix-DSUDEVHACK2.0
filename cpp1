@@ -1,0 +1,170 @@
+#include <RTClib.h>
+#include <Preferences.h>
+
+RTC_DS3231 rtc;
+Preferences preferences;
+
+// Structure to store kitchen usage data
+struct KitchenUsage {
+  DateTime startTime;
+  DateTime endTime;
+  float gasUsed; // in grams
+  int activityType; // 0: cooking, 1: heating, 2: other
+};
+
+// Routine patterns
+struct DailyPattern {
+  int hour;
+  int minute;
+  float avgGasUsage;
+  int frequency; // how many times this pattern occurred
+};
+
+#define MAX_RECORDS 1000
+#define PATTERN_HOURS 24
+
+KitchenUsage usageRecords[MAX_RECORDS];
+int recordIndex = 0;
+DailyPattern dailyPatterns[PATTERN_HOURS];
+
+void setupRoutineAnalysis() {
+  if (!rtc.begin()) {
+    Serial.println("Couldn't find RTC");
+    return;
+  }
+  
+  if (rtc.lostPower()) {
+    Serial.println("RTC lost power, setting time");
+    rtc.adjust(DateTime(F(_DATE), F(TIME_)));
+  }
+  
+  preferences.begin("kitchen-routine", false);
+  loadStoredData();
+}
+
+void recordKitchenUsage(float gasConsumed) {
+  DateTime now = rtc.now();
+  
+  // Check if we're continuing a previous session
+  if (recordIndex > 0) {
+    KitchenUsage& lastRecord = usageRecords[recordIndex-1];
+    
+    // If last usage was within 30 minutes, consider it the same session
+    if ((now.unixtime() - lastRecord.endTime.unixtime()) < 1800) {
+      lastRecord.endTime = now;
+      lastRecord.gasUsed += gasConsumed;
+      return;
+    }
+  }
+  
+  // Create new record
+  if (recordIndex < MAX_RECORDS) {
+    usageRecords[recordIndex].startTime = now;
+    usageRecords[recordIndex].endTime = now;
+    usageRecords[recordIndex].gasUsed = gasConsumed;
+    
+    // Determine activity type based on usage pattern
+    if (gasConsumed > 500) { // More than 500g = cooking
+      usageRecords[recordIndex].activityType = 0;
+    } else if (gasConsumed > 100) { // 100-500g = heating
+      usageRecords[recordIndex].activityType = 1;
+    } else { // Less than 100g = other
+      usageRecords[recordIndex].activityType = 2;
+    }
+    
+    recordIndex++;
+  } else {
+    // Shift array to make space (FIFO)
+    for (int i = 1; i < MAX_RECORDS; i++) {
+      usageRecords[i-1] = usageRecords[i];
+    }
+    recordIndex = MAX_RECORDS - 1;
+  }
+  
+  analyzePatterns();
+  saveData();
+}
+
+void analyzePatterns() {
+  // Reset patterns
+  memset(dailyPatterns, 0, sizeof(dailyPatterns));
+  
+  // Analyze usage by hour of day
+  for (int i = 0; i < recordIndex; i++) {
+    int hour = usageRecords[i].startTime.hour();
+    
+    dailyPatterns[hour].hour = hour;
+    dailyPatterns[hour].avgGasUsage = 
+      (dailyPatterns[hour].avgGasUsage * dailyPatterns[hour].frequency + usageRecords[i].gasUsed) / 
+      (dailyPatterns[hour].frequency + 1);
+    dailyPatterns[hour].frequency++;
+  }
+  
+  // Print analysis
+  Serial.println("=== Kitchen Routine Analysis ===");
+  for (int i = 0; i < PATTERN_HOURS; i++) {
+    if (dailyPatterns[i].frequency > 0) {
+      Serial.printf("Hour %02d: %d sessions, Avg Usage: %.1fg\n", 
+                   i, dailyPatterns[i].frequency, dailyPatterns[i].avgGasUsage);
+    }
+  }
+}
+
+void predictNextUsage() {
+  DateTime now = rtc.now();
+  int currentHour = now.hour();
+  
+  // Find the most active hours in the next 6 hours
+  Serial.println("=== Usage Prediction (Next 6 hours) ===");
+  for (int i = 0; i < 6; i++) {
+    int checkHour = (currentHour + i) % 24;
+    
+    if (dailyPatterns[checkHour].frequency > 0) {
+      float probability = (dailyPatterns[checkHour].frequency * 100.0) / recordIndex;
+      Serial.printf("%02d:00 - Probability: %.1f%%, Expected Usage: %.1fg\n", 
+                   checkHour, probability, dailyPatterns[checkHour].avgGasUsage);
+    }
+  }
+}
+
+void saveData() {
+  preferences.putInt("recordCount", recordIndex);
+  
+  for (int i = 0; i < recordIndex; i++) {
+    String key = "record_" + String(i);
+    String value = 
+      String(usageRecords[i].startTime.unixtime()) + "," +
+      String(usageRecords[i].endTime.unixtime()) + "," +
+      String(usageRecords[i].gasUsed, 2) + "," +
+      String(usageRecords[i].activityType);
+    
+    preferences.putString(key.c_str(), value);
+  }
+  
+  Serial.println("Data saved to flash");
+}
+
+void loadStoredData() {
+  recordIndex = preferences.getInt("recordCount", 0);
+  
+  for (int i = 0; i < recordIndex; i++) {
+    String key = "record_" + String(i);
+    String value = preferences.getString(key.c_str(), "");
+    
+    if (value != "") {
+      int firstComma = value.indexOf(',');
+      int secondComma = value.indexOf(',', firstComma + 1);
+      int thirdComma = value.indexOf(',', secondComma + 1);
+      
+      time_t startTime = value.substring(0, firstComma).toInt();
+      time_t endTime = value.substring(firstComma + 1, secondComma).toInt();
+      
+      usageRecords[i].startTime = DateTime(startTime);
+      usageRecords[i].endTime = DateTime(endTime);
+      usageRecords[i].gasUsed = value.substring(secondComma + 1, thirdComma).toFloat();
+      usageRecords[i].activityType = value.substring(thirdComma + 1).toInt();
+    }
+  }
+  
+  analyzePatterns();
+}
